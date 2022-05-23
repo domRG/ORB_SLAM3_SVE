@@ -52,7 +52,7 @@ from scipy import interpolate
 import argparse
 import associate
 import matplotlib
-matplotlib.use('Agg')
+matplotlib.use('GTK3Agg')
 import matplotlib.pyplot as plt
 import matplotlib.pylab as pylab
 from matplotlib.patches import Ellipse
@@ -297,6 +297,7 @@ if __name__=="__main__":
         ax.set_ylabel('y [m]')
         plt.axis('equal')
         plt.savefig("%s.pdf" % args.plot, format="pdf")
+        plt.show(block=True)
         print("Plot saved to %s.pdf" % args.plot)
 
     if len(args.sve) == 2:
@@ -325,6 +326,7 @@ if __name__=="__main__":
 
         print("saving...")
         plt.savefig("%s.pdf" % args.sve[1], format="pdf")
+        plt.show(block=True)
         print("done")
 
 

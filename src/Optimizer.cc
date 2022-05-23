@@ -2643,6 +2643,7 @@ void Optimizer::LocalInertialBA(KeyFrame *pKF, bool *pbStopFlag, Map *pMap, int&
             }
             optimizer.addEdge(vei[i]);
 
+            // TODO Dom here?
             vegr[i] = new EdgeGyroRW();
             vegr[i]->setVertex(0,VG1);
             vegr[i]->setVertex(1,VG2);
@@ -2686,7 +2687,7 @@ void Optimizer::LocalInertialBA(KeyFrame *pKF, bool *pbStopFlag, Map *pMap, int&
     vpMapPointEdgeStereo.reserve(nExpectedSize);
 
 
-
+    // TODO Dom here?
     const float thHuberMono = sqrt(5.991);
     const float chi2Mono2 = 5.991;
     const float thHuberStereo = sqrt(7.815);
@@ -2731,6 +2732,7 @@ void Optimizer::LocalInertialBA(KeyFrame *pKF, bool *pbStopFlag, Map *pMap, int&
 
                 cv::KeyPoint kpUn;
 
+                // TODO Dom here?
                 // Monocular left observation
                 if(leftIndex != -1 && pKFi->mvuRight[leftIndex]<0)
                 {
@@ -3363,6 +3365,7 @@ void Optimizer::InertialOptimization(Map *pMap, Eigen::Vector3d &bg, Eigen::Vect
     bg << VG->estimate();
     ba << VA->estimate();
 
+    // TODO Dom here?
     IMU::Bias b (vb[3],vb[4],vb[5],vb[0],vb[1],vb[2]);
 
     //Keyframes velocities and biases

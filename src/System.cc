@@ -389,7 +389,7 @@ namespace ORB_SLAM3 {
     Sophus::SE3f System::TrackMonocular(const cv::Mat &im, const double &timestamp, const vector<IMU::Point> &vImuMeas,
                                         string filename) {
 
-        {
+        {  // SCOPE VERY IMPORTANT
             unique_lock<mutex> lock(mMutexReset);
             if (mbShutDown)
                 return Sophus::SE3f();
@@ -447,6 +447,7 @@ namespace ORB_SLAM3 {
             for (size_t i_imu = 0; i_imu < vImuMeas.size(); i_imu++)
                 mpTracker->GrabImuData(vImuMeas[i_imu]);
 
+        // SVE_a, SVE_b, SVE_c & IMU Switch within
         Sophus::SE3f Tcw = mpTracker->GrabImageMonocular(imToFeed, timestamp, filename);
 
         unique_lock<mutex> lock2(mMutexState);
@@ -457,11 +458,6 @@ namespace ORB_SLAM3 {
         /* ---------- <SVE> ---------- */
         // store all timestamps of visibility measurements in vSVE_t
         vSVE_t.push_back(mpTracker->mCurrentFrame.mTimeStamp);
-
-        // calculate overall visibility based on the three metrics per frame
-        mpTracker->mCurrentFrame.visibility =
-                0.2 * mpTracker->mCurrentFrame.SVE_a + 0.4 * mpTracker->mCurrentFrame.SVE_b +
-                0.4 * mpTracker->mCurrentFrame.SVE_c;
 
         // store all the total visibilities and the three metrics in a vector
         std::vector<float> newRow = {mpTracker->mCurrentFrame.visibility, mpTracker->mCurrentFrame.SVE_a,

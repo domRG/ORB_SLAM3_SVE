@@ -195,11 +195,11 @@ Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeSt
     monoLeft = -1;
     monoRight = -1;
 
-    /* ---------- <SVE> ---------- */
+    /* ---------- <SVE> ----------
     // for every frame, we would like to know how visible the scene is. this can be based on a set of metrics relating to the extracted features
 
     // a: how many points have been extracted relative to the requested number?
-    SVE_a = N / float(mpORBextractorLeft->Getnfeatures());
+    SVE_a = N / float();
     // a is simply the ratio between the actual # of points and the 'maximum' # of points
     // cout << "SVE_a: " << SVE_a << " N: " << N << " nFeatures: " << float(mpORBextractorLeft->Getnfeatures()) << endl;
     // b: how well distributed are these points in the frame?
@@ -208,7 +208,7 @@ Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeSt
     // c: how many of these points have been tracked (i.e. belong to the local map)?
     // c is contained in 'Tracking.cc' where the calculation trackedPoints/totalPoints is performed.
     // if all points in the frame were already in the local map, they've all been tracked so c=1
-    /* --------------------------- */
+     --------------------------- */
 
     AssignFeaturesToGrid();
 }
@@ -380,11 +380,11 @@ Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extra
     monoLeft = -1;
     monoRight = -1;
 
-    /* ---------- <SVE> ---------- */
+    /* ---------- <SVE> ----------
     // for every frame, we would like to know how visible the scene is. this can be based on a set of metrics relating to the extracted features
 
     // a: how many points have been extracted relative to the requested number?
-    SVE_a = N / float(mpORBextractorLeft->Getnfeatures());
+    SVE_a = N / float(mpORBextractorLeft->GetTrackedFeatures());
     // a is simply the ratio between the actual # of points and the 'maximum' # of points
     // cout << "SVE_a: " << SVE_a << " N: " << N << " nFeatures: " << float(mpORBextractorLeft->Getnfeatures()) << endl;
     // b: how well distributed are these points in the frame?
@@ -393,7 +393,7 @@ Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extra
     // c: how many of these points have been tracked (i.e. belong to the local map)?
     // c is contained in 'Tracking.cc' where the calculation trackedPoints/totalPoints is performed.
     // if all points in the frame were already in the local map, they've all been tracked so c=1
-    /* --------------------------- */
+     --------------------------- */
 
     AssignFeaturesToGrid();
 

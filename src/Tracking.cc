@@ -1583,6 +1583,7 @@ Sophus::SE3f Tracking::GrabImageMonocular(const cv::Mat &im, const double &times
 
     if (mSensor == System::MONOCULAR)
     {
+        // SVE_b calculated within Frame()
         if(mState==NOT_INITIALIZED || mState==NO_IMAGES_YET ||(lastID - initID) < mMaxFrames)
             mCurrentFrame = Frame(mImGray,timestamp,mpIniORBextractor,mpORBVocabulary,mpCamera,mDistCoef,mbf,mThDepth);
         else
@@ -1609,6 +1610,7 @@ Sophus::SE3f Tracking::GrabImageMonocular(const cv::Mat &im, const double &times
 #endif
 
     lastID = mCurrentFrame.mnId;
+    // SVE_a & SVE_c & imu switch within Track()
     Track();
 
     return mCurrentFrame.GetPose();
@@ -1856,6 +1858,7 @@ void Tracking::Track()
     }
 
 
+    // TODO Dom here?
     if ((mSensor == System::IMU_MONOCULAR || mSensor == System::IMU_STEREO || mSensor == System::IMU_RGBD) && mpLastKeyFrame)
         mCurrentFrame.SetNewBias(mpLastKeyFrame->GetImuBias());
 
@@ -1950,6 +1953,7 @@ void Tracking::Track()
                 else
                 {
                     Verbose::PrintMess("TRACK: Track with motion model", Verbose::VERBOSITY_DEBUG);
+                    // TODO Dom here? debug somewhere around here to identify place to insert
                     bOK = TrackWithMotionModel();
                     if(!bOK)
                         bOK = TrackReferenceKeyFrame();
@@ -2124,6 +2128,7 @@ void Tracking::Track()
         {
             if(bOK)
             {
+                // SVE_a & SVE_c & IMU switch within TrackLocalMap()
                 bOK = TrackLocalMap();
 
             }
@@ -2906,6 +2911,7 @@ bool Tracking::TrackWithMotionModel()
     }
 
     // Optimize frame pose with all matches
+    // eli5: graph theory, taking graph of know points and attempting to align them, sort of like cross-correlation
     Optimizer::PoseOptimization(&mCurrentFrame);
 
     // Discard outliers
@@ -3025,48 +3031,85 @@ bool Tracking::TrackLocalMap()
     }
 
     /* ---------- <SVE> ---------- */
+    // arbitrary choice of a "good" ratio of tracked:extracted features
+    float goodRatio = 0.5;  // tune as required, e.g. 0.5 -> 50% of ext.feat. as tracked is "good visibility", SVE_a = 1 (=MAX)
+
+    // ratio of features successfully tracked : identified features
+    float scaled_a = float(mnMatchesInliers) / (goodRatio * float(mCurrentFrame.N));
+
+    mCurrentFrame.SVE_a = (scaled_a > 1) ? 1 :((scaled_a < 0) ? 0 : scaled_a);  // limit {scaled_a}: [0,1]
+
+    // cout << "SVE_a = " << mCurrentFrame.SVE_a << " = " << float(mnMatchesInliers) << " / " << float(mCurrentFrame.N) << endl;
+
+
     // tell the frame how many points it is tracking from the local map relative to how many of the local map points should be visible to this frame
     if (mapPointsInFrustum != 0){
         mCurrentFrame.SVE_c = float(mnMatchesInliers)/float(mapPointsInFrustum);
     } else {
         mCurrentFrame.SVE_c = 0;
     }
+
+    // calculate overall visibility based on the three metrics per frame
+    mCurrentFrame.visibility =
+            0.5 * mCurrentFrame.SVE_a + 0.25 * mCurrentFrame.SVE_b +
+            0.25 * mCurrentFrame.SVE_c;
+    cout << "NewSveComputed: " << mCurrentFrame.visibility << endl;
+
     /* --------------------------- */
 
     // Decide if the tracking was succesful
     // More restrictive if there was a relocalization recently
     mpLocalMapper->mnMatchesInliers=mnMatchesInliers;
-    if(mCurrentFrame.mnId<mnLastRelocFrameId+mMaxFrames && mnMatchesInliers<50)
+    if(mCurrentFrame.mnId < (mnLastRelocFrameId + mMaxFrames)
+        && mnMatchesInliers < 50) {
+//        cout << "o@-0" << endl;
         return false;
+    }
 
-    if((mnMatchesInliers>10)&&(mState==RECENTLY_LOST))
+    // IMU_Switch, enable cam-tracking
+    if((mnMatchesInliers > 10)
+        && (mState == RECENTLY_LOST)) {
+//        cout << "o@-1" << endl;
         return true;
+    }
 
 
     if (mSensor == System::IMU_MONOCULAR)
     {
-        if((mnMatchesInliers<15 && mpAtlas->isImuInitialized())||(mnMatchesInliers<50 && !mpAtlas->isImuInitialized()))
-        {
+        // IMU_Switch, disable cam-tracking
+        auto imuIsInit = mpAtlas->isImuInitialized();
+        if((mnMatchesInliers < 15 && imuIsInit)
+            || (mnMatchesInliers < 50 && !imuIsInit)){
+//            cout << "o@-2" << endl;
             return false;
         }
-        else
+        else {
+//            cout << "o@-3" << endl;
             return true;
+        }
     }
     else if (mSensor == System::IMU_STEREO || mSensor == System::IMU_RGBD)
     {
         if(mnMatchesInliers<15)
         {
+//            cout << "o@-4" << endl;
             return false;
         }
-        else
+        else {
+//            cout << "o@-5" << endl;
             return true;
+        }
     }
     else
     {
-        if(mnMatchesInliers<30)
+        if(mnMatchesInliers<30) {
+//            cout << "o@-6" << endl;
             return false;
-        else
+        }
+        else {
+//            cout << "o@-7" << endl;
             return true;
+        }
     }
 }
 
@@ -4029,6 +4072,7 @@ void Tracking::UpdateFrameIMU(const float s, const IMU::Bias &b, KeyFrame* pCurr
     }
 
 
+    //TODO Dom here?
     if(mLastFrame.mnId == mLastFrame.mpLastKeyFrame->mnFrameId)
     {
         mLastFrame.SetImuPoseVelocity(mLastFrame.mpLastKeyFrame->GetImuRotation(),
