@@ -44,9 +44,20 @@ import argparse
 import sys
 import os
 import numpy
+import re
+import pandas as pd
 
 
-def read_file_list(filename,remove_bounds):
+def read_dataframe(filename, t_factor=1.0):
+    # TODO: add extra handling for badly formed files
+    # pure csv only
+    df = pd.read_csv(filename)
+    df.assign(Time = df["Time"] * t_factor)
+    df.set_index("Time", inplace=True)
+    return df
+    
+
+def read_file_list(filename, remove_bounds, skip_header=False, t_factor=1.0):
     """
     Reads a trajectory from a text file. 
     
@@ -62,13 +73,54 @@ def read_file_list(filename,remove_bounds):
     
     """
     file = open(filename)
+
     data = file.read()
     lines = data.replace(","," ").replace("\t"," ").split("\n")
-    if remove_bounds:
-        lines = lines[100:-100]
+    # if skip_header:
+    #     lines = lines[1:]
+    # if remove_bounds:
+    #     lines = lines[100:-100]
+    
+    if re.findall("malaga", filename):
+        pos_range = slice(8, 11)
+    else:
+        pos_range = slice(1, None)
+    
+    for i, line in enumerate(lines):
+        lines[i] = re.split("\s{2,}", line)
+        
+    if re.findall("[%#]", lines[0][0]):
+        lines[0].pop(0)
+
     list = [[v.strip() for v in line.split(" ") if v.strip()!=""] for line in lines if len(line)>0 and line[0]!="#"]
-    list = [(float(l[0]),l[1:]) for l in list if len(l)>1]
+    list = [(t_factor * float(l[0]),l[pos_range]) for l in list if len(l)>1]
     return dict(list)
+
+def associate_df(df1, df2, offset, max_diff):
+    first_keys = list(df1.index.values)
+    second_keys = list(df2.index.values)
+    potential_matches = [(abs(a - (b + offset)), a, b) 
+                         for a in first_keys 
+                         for b in second_keys 
+                         if abs(a - (b + offset)) < max_diff]
+    potential_matches.sort()
+    matches = []
+    for diff, a, b in potential_matches:
+        if a in first_keys and b in second_keys:
+            first_keys.remove(a)
+            second_keys.remove(b)
+            matches.append((a, b))
+    
+    matches.sort()
+    return matches
+    
+    matches = []
+    for a in df1.index.values:
+        for b in df2.index.values:
+            diff = abs(a - (b + float(offset)))
+            if diff < float(max_diff):
+                matches.append((a, b))
+    return matches
 
 def associate(first_list, second_list,offset,max_difference):
     """

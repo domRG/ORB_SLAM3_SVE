@@ -2832,9 +2832,11 @@ void Optimizer::LocalInertialBA(KeyFrame *pKF, bool *pbStopFlag, Map *pMap, int&
     }
 
     //cout << "Total map points: " << lLocalMapPoints.size() << endl;
-    for(map<int,int>::iterator mit=mVisEdges.begin(), mend=mVisEdges.end(); mit!=mend; mit++)
-    {
-        assert(mit->second>=3);
+    for (map<int, int>::iterator mit = mVisEdges.begin(), mend = mVisEdges.end(); mit != mend; mit++) {
+        assert(mit->second>=3);  // fails in EuRoC MH01-stereo-inertial
+//        if (mit->second < 3) {
+//            cout << "Low map point count? CAUTION" << endl;
+//        }
     }
 
     optimizer.initializeOptimization();

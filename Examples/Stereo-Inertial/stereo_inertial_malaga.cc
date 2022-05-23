@@ -1,19 +1,7 @@
 /**
-* This file is part of ORB-SLAM3
+* This file is part of ORB-SLAM3 Scene Visibility Estimation
 *
-* Copyright (C) 2017-2021 Carlos Campos, Richard Elvira, Juan J. Gómez Rodríguez, José M.M. Montiel and Juan D. Tardós, University of Zaragoza.
-* Copyright (C) 2014-2016 Raúl Mur-Artal, José M.M. Montiel and Juan D. Tardós, University of Zaragoza.
-*
-* ORB-SLAM3 is free software: you can redistribute it and/or modify it under the terms of the GNU General Public
-* License as published by the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
-*
-* ORB-SLAM3 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
-* the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with ORB-SLAM3.
-* If not, see <http://www.gnu.org/licenses/>.
+* by Dom RG www.github.com/domrg
 */
 
 #include<iostream>
@@ -43,7 +31,7 @@ int main(int argc, char **argv)
 {
     if(argc < 5)
     {
-        cerr << endl << "Usage: ./stereo_inertial_euroc path_to_vocabulary path_to_settings path_to_sequence_folder_1 path_to_times_file_1 (path_to_image_folder_2 path_to_times_file_2 ... path_to_image_folder_N path_to_times_file_N) " << endl;
+        cerr << endl << "Usage: ./stereo_inertial_malaga path_to_vocabulary path_to_settings path_to_sequence_folder path_to_times_file " << endl;
         return 1;
     }
 
@@ -175,20 +163,20 @@ int main(int argc, char **argv)
                     first_imu[seq]++;
                 }
 
-    #ifdef COMPILEDWITHC11
+#ifdef COMPILEDWITHC11
             std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
-    #else
+#else
             std::chrono::monotonic_clock::time_point t1 = std::chrono::monotonic_clock::now();
-    #endif
+#endif
 
             // Pass the images to the SLAM system
             SLAM.TrackStereo(imLeft,imRight,tframe,vImuMeas);
 
-    #ifdef COMPILEDWITHC11
+#ifdef COMPILEDWITHC11
             std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
-    #else
+#else
             std::chrono::monotonic_clock::time_point t2 = std::chrono::monotonic_clock::now();
-    #endif
+#endif
 
 #ifdef REGISTER_TIMES
             t_track = t_rect + t_resize + std::chrono::duration_cast<std::chrono::duration<double,std::milli> >(t2 - t1).count();
@@ -229,14 +217,14 @@ int main(int argc, char **argv)
         const string kf_file =  "kf_" + string(argv[argc-1]) + ".txt";
         const string f_file =  "f_" + string(argv[argc-1]) + ".txt";
         const string sve_file =  "sve_" + string(argv[argc-1]) + ".txt";
-        SLAM.SaveTrajectoryEuRoC(f_file);
-        SLAM.SaveKeyFrameTrajectoryEuRoC(kf_file);
+        SLAM.SaveTrajectoryMalaga(f_file);
+        SLAM.SaveKeyFrameTrajectoryMalaga(kf_file);
         SLAM.SaveVisibilityStatistics(sve_file);
     }
     else
     {
-        SLAM.SaveTrajectoryEuRoC("CameraTrajectory.txt");
-        SLAM.SaveKeyFrameTrajectoryEuRoC("KeyFrameTrajectory.txt");
+        SLAM.SaveTrajectoryMalaga("CameraTrajectory.txt");
+        SLAM.SaveKeyFrameTrajectoryMalaga("KeyFrameTrajectory.txt");
     }
 
     return 0;

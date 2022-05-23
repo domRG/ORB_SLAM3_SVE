@@ -41,6 +41,7 @@
 
 #include <mutex>
 #include <unordered_set>
+#include <unistd.h>
 
 namespace ORB_SLAM3
 {
@@ -314,6 +315,10 @@ protected:
 
     //Current matches in frame
     int mnMatchesInliers;
+
+    /* ---------- <SVE> ---------- */
+    int mapPointsInFrustum; // the number of map points that are in view of the current frame
+    /* --------------------------- */
 
     //Last Frame, KeyFrame and Relocalisation Info
     KeyFrame* mpLastKeyFrame;
