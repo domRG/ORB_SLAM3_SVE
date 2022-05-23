@@ -1,7 +1,10 @@
 # This Project
+
 Developed by domRG as MEng Final Year Project
+
 Built upon ORB-SLAM3, it incorporates [rdehaggart1's Scene Visibility Estimation](https://github.com/rdehaggart1/sceneVisibilityInSLAM)
-also used are tools provided in [rosbag_tools](https://github.com/domRG/rosbag_tools)
+
+Also used are tools provided in [rosbag_tools](https://github.com/domRG/rosbag_tools)
 
 # ORB-SLAM3
 
