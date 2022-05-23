@@ -3032,7 +3032,7 @@ bool Tracking::TrackLocalMap()
 
     /* ---------- <SVE> ---------- */
     // arbitrary choice of a "good" ratio of tracked:extracted features
-    float goodRatio = 0.5;  // tune as required, e.g. 0.5 -> 50% of ext.feat. as tracked is "good visibility", SVE_a = 1 (=MAX)
+    float goodRatio = 0.25;  // tune as required, e.g. 0.5 -> 50% of ext.feat. as tracked is "good visibility", SVE_a = 1 (=MAX)
 
     // ratio of features successfully tracked : identified features
     float scaled_a = float(mnMatchesInliers) / (goodRatio * float(mCurrentFrame.N));
@@ -3044,15 +3044,15 @@ bool Tracking::TrackLocalMap()
 
     // tell the frame how many points it is tracking from the local map relative to how many of the local map points should be visible to this frame
     if (mapPointsInFrustum != 0){
-        mCurrentFrame.SVE_c = float(mnMatchesInliers)/float(mapPointsInFrustum);
+        float tmp_c = float(mnMatchesInliers)/float(mapPointsInFrustum);
+        mCurrentFrame.SVE_c = (tmp_c > 1) ? 1 :((tmp_c < 0) ? 0 : tmp_c);
     } else {
         mCurrentFrame.SVE_c = 0;
     }
 
     // calculate overall visibility based on the three metrics per frame
-    mCurrentFrame.visibility =
-            0.5 * mCurrentFrame.SVE_a + 0.25 * mCurrentFrame.SVE_b +
-            0.25 * mCurrentFrame.SVE_c;
+    mCurrentFrame.visibility = sqrt(mCurrentFrame.SVE_a *
+                                    (0.5 * mCurrentFrame.SVE_b + 0.5 * mCurrentFrame.SVE_c));
 //    cout << "NewSveComputed: " << mCurrentFrame.visibility << endl;
 
     /* --------------------------- */
@@ -3061,13 +3061,13 @@ bool Tracking::TrackLocalMap()
     // More restrictive if there was a relocalization recently
     mpLocalMapper->mnMatchesInliers=mnMatchesInliers;
     if(mCurrentFrame.mnId < (mnLastRelocFrameId + mMaxFrames)
-        && mCurrentFrame.visibility < 0.3) {
+        && mCurrentFrame.visibility < 0.2) {
 //        cout << "o@-0" << endl;
         return false;
     }
 
     // IMU_Switch, enable cam-tracking
-    if((mCurrentFrame.visibility > 0.1)
+    if((mCurrentFrame.visibility > 0.04)
         && (mState == RECENTLY_LOST)) {
 //        cout << "o@-1" << endl;
         return true;
@@ -3078,8 +3078,8 @@ bool Tracking::TrackLocalMap()
     {
         // IMU_Switch, disable cam-tracking
         auto imuIsInit = mpAtlas->isImuInitialized();
-        if((mCurrentFrame.visibility < 0.1 && imuIsInit)
-            || (mCurrentFrame.visibility < 0.3 && !imuIsInit)){
+        if((mCurrentFrame.visibility < 0.06 && imuIsInit)
+            || (mCurrentFrame.visibility < 0.2 && !imuIsInit)){
 //            cout << "o@-2" << endl;
             return false;
         }

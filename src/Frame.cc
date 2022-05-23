@@ -484,7 +484,8 @@ void Frame::AssignFeaturesToGrid()
     }
 
     // the b metric is then normalised to the 0-1 range by finding how close the distribution is to the worst-case scenario
-    SVE_b = 1 - (chiSquared/worstCase);
+    float tmp_b = 1 - (chiSquared/worstCase);
+    SVE_b = (tmp_b > 1) ? 1 :((tmp_b < 0) ? 0 : tmp_b);
     /* ---------------------------*/
 
 }

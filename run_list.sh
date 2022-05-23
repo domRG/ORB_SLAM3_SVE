@@ -24,23 +24,19 @@ do
 				echo -e "\t\tBag: ${path_parts[path_len-1]}"
 				echo "${bag:0:-4}_${i}" >> slam_log.txt
 
-				current_window=$(xdotool getactivewindow)
+				current_window=$(xdotool getwindowfocus)
 
 				rosrun ORB_SLAM3 Mono_Inertial SlamNode0 ~/opt/ORB_SLAM3/Vocabulary/ORBvoc.txt ~/Documents/fyp/datasets/euroc/euroc_monoi.yaml >>slam_log.txt 2>&1 &
 				slam0_pid=$!
-				echo $sudo_pw | sudo -S renice -n -20 $slam0_pid &> /dev/null
 
 				rosrun ORB_SLAM3 Mono_Inertial SlamNode1 ~/opt/ORB_SLAM3/Vocabulary/ORBvoc.txt ~/Documents/fyp/datasets/euroc/euroc_monoi.yaml >>slam_log.txt 2>&1 &
 				slam1_pid=$!
-				echo $sudo_pw | sudo -S renice -n -20 $slam1_pid &> /dev/null
 
 				rosrun ORB_SLAM3 Mono_Inertial SlamNode2 ~/opt/ORB_SLAM3/Vocabulary/ORBvoc.txt ~/Documents/fyp/datasets/euroc/euroc_monoi.yaml >>slam_log.txt 2>&1 &
 				slam2_pid=$!
-				echo $sudo_pw | sudo -S renice -n -20 $slam2_pid &> /dev/null
 
 				rosrun ORB_SLAM3 Mono_Inertial SlamNode3 ~/opt/ORB_SLAM3/Vocabulary/ORBvoc.txt ~/Documents/fyp/datasets/euroc/euroc_monoi.yaml >>slam_log.txt 2>&1 &
 				slam3_pid=$!
-				echo $sudo_pw | sudo -S renice -n -20 $slam3_pid &> /dev/null
 
 				WINDOWS=()
 				while [ ${#WINDOWS[@]} -lt 8 ]; do
@@ -48,14 +44,16 @@ do
 					eval $(xdotool search --onlyvisible --shell --name "ORB-SLAM3: " 2> /dev/null)
 					sleep 0.1
 				done
+				eval $(xdotool search --onlyvisible --shell --name "ORB-SLAM3: " 2> /dev/null)
 
 				xdotool windowactivate ${current_window}
 				# do twice just to catch missed ones :/
-				for j in 1 2; do
+				for j in 1 2 3; do
 					for id in ${WINDOWS[@]}
 					do
 						{ # try
 							xdotool windowminimize ${id} &> /dev/null
+							a=0
 						}||{ # catch
 							# do nothing
 							a=1
@@ -64,6 +62,13 @@ do
 				done
 
 				sleep 2
+
+
+				echo $sudo_pw | sudo -S renice -n -20 $slam0_pid &> /dev/null
+				echo $sudo_pw | sudo -S renice -n -20 $slam1_pid &> /dev/null
+				echo $sudo_pw | sudo -S renice -n -20 $slam2_pid &> /dev/null
+				echo $sudo_pw | sudo -S renice -n -20 $slam3_pid &> /dev/null
+
 				rosbag play $bag &> /dev/null &
 				bag_pid=$!
 
