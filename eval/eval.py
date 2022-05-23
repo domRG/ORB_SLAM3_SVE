@@ -1,5 +1,7 @@
 import argparse
 import sys
+import warnings
+
 import numpy as np
 import pandas as pd
 import json
@@ -57,28 +59,34 @@ class Evaluator:
 
     def load_data(self):
         self.gt_traj = manipulations.csv_to_df(self.args["groundtruth_traj_file"])
-        self.est_traj = manipulations.csv_to_df(self.args["estimated_traj_file"], scale_time_df=self.gt_traj)
+        try:
+            self.est_traj = manipulations.csv_to_df(self.args["estimated_traj_file"], scale_time_df=self.gt_traj)
 
-        self.total_df, self.gt_column_map = manipulations.merge_traj(self.gt_traj, self.est_traj)
+            self.total_df, self.gt_column_map = manipulations.merge_traj(self.gt_traj, self.est_traj)
+        except:
+            self.total_df = None
 
     def preprocess(self):
         if self.total_df is None:
-            raise RuntimeError("data not yet loaded, call this.load_data() first or use a context manager")
-        self.gt_xyz = self.total_df[[self.gt_column_map[i] for i in ["px", "py", "pz"]]].to_numpy().transpose()
-        self.est_xyz = self.total_df[["t_1", "t_2", "t_0"]].to_numpy().transpose()
+            warnings.WarningMessage(
+                "data not loaded, either the trajectory doesn't exist or you haven't called this.load_data()")
+        else:
+            self.gt_xyz = self.total_df[[self.gt_column_map[i] for i in ["px", "py", "pz"]]].to_numpy().transpose()
+            self.est_xyz = self.total_df[["t_1", "t_2", "t_0"]].to_numpy().transpose()
 
-        self.rot, self.transGT, self.trans_errorGT, self.trans, self.trans_error, self.scale = manipulations.align(
-            self.est_xyz, self.gt_xyz)
+            self.rot, self.transGT, self.trans_errorGT, self.trans, self.trans_error, self.scale = manipulations.align(
+                self.est_xyz, self.gt_xyz)
 
-        self.est_xyz_aligned = np.asarray(((self.scale * self.rot * self.est_xyz).transpose() + self.trans).transpose())
-        self.total_df["t_1"] = self.est_xyz_aligned[0]
-        self.total_df["t_2"] = self.est_xyz_aligned[1]
-        self.total_df["t_0"] = self.est_xyz_aligned[2]
+            self.est_xyz_aligned = np.asarray(
+                ((self.scale * self.rot * self.est_xyz).transpose() + self.trans).transpose())
+            self.total_df["t_1"] = self.est_xyz_aligned[0]
+            self.total_df["t_2"] = self.est_xyz_aligned[1]
+            self.total_df["t_0"] = self.est_xyz_aligned[2]
 
     def main(self):
         self.preprocess()
 
-        if "plot" in self.args.keys():
+        if "plot" in self.args.keys() and self.total_df is not None:
             self.plot(self.args["plot"])
 
         if "sve" in self.args.keys():
@@ -87,8 +95,11 @@ class Evaluator:
         if "verbose" in self.args.keys():
             self.verbose(self.args["verbose"])
         else:
-            print(
-                f"{np.sqrt(np.dot(self.trans_error, self.trans_error) / len(self.trans_error))}, {self.scale}, {np.sqrt(np.dot(self.trans_errorGT, self.trans_errorGT) / len(self.trans_errorGT)):.6f}")
+            try:
+                print(
+                    f"{np.sqrt(np.dot(self.trans_error, self.trans_error) / len(self.trans_error))}, {self.scale}, {np.sqrt(np.dot(self.trans_errorGT, self.trans_errorGT) / len(self.trans_errorGT)):.6f}")
+            except:
+                print("Non-Verbose output error")
 
         if "display" in self.args.keys():
             self.display(self.args["display"])
@@ -123,7 +134,8 @@ class Evaluator:
 
         self.output_details["sve"] = {}
         self.output_details["sve"]["len"] = len(self.sve_df["sve"])
-        self.output_details["sve"]["rms"] = np.round(np.sqrt(np.mean(np.square(self.sve_df["sve"]))), self.verbose_precision)
+        self.output_details["sve"]["rms"] = np.round(np.sqrt(np.mean(np.square(self.sve_df["sve"]))),
+                                                     self.verbose_precision)
         self.output_details["sve"]["mean"] = np.round(np.mean(self.sve_df["sve"]), self.verbose_precision)
         self.output_details["sve"]["median"] = np.round(np.median(self.sve_df["sve"]), self.verbose_precision)
         self.output_details["sve"]["std"] = np.round(np.std(self.sve_df["sve"]), self.verbose_precision)
@@ -133,7 +145,8 @@ class Evaluator:
         self.output_details["sve"]["time"] = {}
         self.output_details["sve"]["time"]["start"] = np.round(np.min(self.sve_df.norm_time), self.verbose_precision)
         self.output_details["sve"]["time"]["end"] = np.round(np.max(self.sve_df.norm_time), self.verbose_precision)
-        self.output_details["sve"]["time"]["description"] = "start and end time values in normalised time (ie relative to groundtruth start and finish)"
+        self.output_details["sve"]["time"][
+            "description"] = "start and end time values in normalised time (ie relative to groundtruth start and finish)"
 
         if do_plot:
             if filename is None:
@@ -161,28 +174,36 @@ class Evaluator:
             print(f"Plot saved to {filename}.eps")
 
     def verbose(self, filename):
-        self.output_details["traj"] = {}
-        self.output_details["traj"]["len"] = (len(self.trans_error))
+        if self.total_df is not None:  # file read, therefore data should be present
+            self.output_details["traj"] = {}
+            self.output_details["traj"]["len"] = (len(self.trans_error))
 
-        self.output_details["traj"]["error"] = {}
-        self.output_details["traj"]["error"]["rmse"] = np.round(
-            np.sqrt(np.dot(self.trans_error, self.trans_error) / len(self.trans_error)), self.verbose_precision)
-        self.output_details["traj"]["error"]["mean"] = np.round(np.mean(self.trans_error), self.verbose_precision)
-        self.output_details["traj"]["error"]["median"] = np.round(np.median(self.trans_error), self.verbose_precision)
-        self.output_details["traj"]["error"]["std"] = np.round(np.std(self.trans_error), self.verbose_precision)
-        self.output_details["traj"]["error"]["min"] = np.round(np.min(self.trans_error), self.verbose_precision)
-        self.output_details["traj"]["error"]["max"] = np.round(np.max(self.trans_error), self.verbose_precision)
-        self.output_details["traj"]["error"]["description"] = "absolute translational error"
+            self.output_details["traj"]["error"] = {}
+            self.output_details["traj"]["error"]["rmse"] = np.round(
+                np.sqrt(np.dot(self.trans_error, self.trans_error) / len(self.trans_error)), self.verbose_precision)
+            self.output_details["traj"]["error"]["mean"] = np.round(np.mean(self.trans_error), self.verbose_precision)
+            self.output_details["traj"]["error"]["median"] = np.round(np.median(self.trans_error),
+                                                                      self.verbose_precision)
+            self.output_details["traj"]["error"]["std"] = np.round(np.std(self.trans_error), self.verbose_precision)
+            self.output_details["traj"]["error"]["min"] = np.round(np.min(self.trans_error), self.verbose_precision)
+            self.output_details["traj"]["error"]["max"] = np.round(np.max(self.trans_error), self.verbose_precision)
+            self.output_details["traj"]["error"]["description"] = "absolute translational error"
 
-        self.output_details["traj"]["errorGT"] = {}
-        self.output_details["traj"]["errorGT"]["rmse"] = np.round(
-            np.sqrt(np.dot(self.trans_errorGT, self.trans_errorGT) / len(self.trans_errorGT)), self.verbose_precision)
-        self.output_details["traj"]["errorGT"]["description"] = "absolute translational errorGT"
+            self.output_details["traj"]["errorGT"] = {}
+            self.output_details["traj"]["errorGT"]["rmse"] = np.round(
+                np.sqrt(np.dot(self.trans_errorGT, self.trans_errorGT) / len(self.trans_errorGT)),
+                self.verbose_precision)
+            self.output_details["traj"]["errorGT"]["description"] = "absolute translational errorGT"
 
-        self.output_details["traj"]["time"] = {}
-        self.output_details["traj"]["time"]["start"] = np.round(np.min(self.total_df.norm_time), self.verbose_precision)
-        self.output_details["traj"]["time"]["end"] = np.round(np.max(self.total_df.norm_time), self.verbose_precision)
-        self.output_details["traj"]["time"]["description"] = "start and end time values in normalised time (ie relative to groundtruth start and finish)"
+            self.output_details["traj"]["time"] = {}
+            self.output_details["traj"]["time"]["start"] = np.round(np.min(self.total_df.norm_time),
+                                                                    self.verbose_precision)
+            self.output_details["traj"]["time"]["end"] = np.round(np.max(self.total_df.norm_time),
+                                                                  self.verbose_precision)
+            self.output_details["traj"]["time"][
+                "description"] = "start and end time values in normalised time (ie relative to groundtruth start and finish)"
+        else:
+            self.output_details["traj"] = None
 
         with open(filename, "w") as of:
             json.dump(self.output_details, of)

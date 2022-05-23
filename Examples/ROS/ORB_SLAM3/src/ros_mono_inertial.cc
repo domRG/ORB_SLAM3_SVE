@@ -17,6 +17,7 @@
 */
 
 #include<iostream>
+#include<string>
 #include<algorithm>
 #include<fstream>
 #include<chrono>
@@ -70,14 +71,18 @@ public:
     cv::Ptr<cv::CLAHE> mClahe = cv::createCLAHE(3.0, cv::Size(8, 8));
 };
 
-
 int main(int argc, char **argv) {
-    ros::init(argc, argv, "Mono_Inertial");
+    std::string nodeName = argv[0];
+    for(int i = 1; i < argc; i++){
+        argv[i-1] = argv[i];
+    }
+    argc -= 1;
+    ros::init(argc, argv, argv[0]);
     ros::NodeHandle n("~");
     ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info);
     bool bEqual = false;
     if (argc < 3 || argc > 4) {
-        cerr << endl << "Usage: rosrun ORB_SLAM3 Mono_Inertial path_to_vocabulary path_to_settings [do_equalize]"
+        cerr << endl << "Usage: rosrun ORB_SLAM3 {node name} Mono_Inertial path_to_vocabulary path_to_settings [do_equalize]"
              << endl;
         ros::shutdown();
         return 1;

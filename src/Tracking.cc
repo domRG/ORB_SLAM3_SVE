@@ -3053,7 +3053,7 @@ bool Tracking::TrackLocalMap()
     mCurrentFrame.visibility =
             0.5 * mCurrentFrame.SVE_a + 0.25 * mCurrentFrame.SVE_b +
             0.25 * mCurrentFrame.SVE_c;
-    cout << "NewSveComputed: " << mCurrentFrame.visibility << endl;
+//    cout << "NewSveComputed: " << mCurrentFrame.visibility << endl;
 
     /* --------------------------- */
 
@@ -3061,13 +3061,13 @@ bool Tracking::TrackLocalMap()
     // More restrictive if there was a relocalization recently
     mpLocalMapper->mnMatchesInliers=mnMatchesInliers;
     if(mCurrentFrame.mnId < (mnLastRelocFrameId + mMaxFrames)
-        && mnMatchesInliers < 50) {
+        && mCurrentFrame.visibility < 0.3) {
 //        cout << "o@-0" << endl;
         return false;
     }
 
     // IMU_Switch, enable cam-tracking
-    if((mnMatchesInliers > 10)
+    if((mCurrentFrame.visibility > 0.1)
         && (mState == RECENTLY_LOST)) {
 //        cout << "o@-1" << endl;
         return true;
@@ -3078,8 +3078,8 @@ bool Tracking::TrackLocalMap()
     {
         // IMU_Switch, disable cam-tracking
         auto imuIsInit = mpAtlas->isImuInitialized();
-        if((mnMatchesInliers < 15 && imuIsInit)
-            || (mnMatchesInliers < 50 && !imuIsInit)){
+        if((mCurrentFrame.visibility < 0.1 && imuIsInit)
+            || (mCurrentFrame.visibility < 0.3 && !imuIsInit)){
 //            cout << "o@-2" << endl;
             return false;
         }
