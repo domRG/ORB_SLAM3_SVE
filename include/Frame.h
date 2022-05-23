@@ -21,6 +21,7 @@
 #define FRAME_H
 
 #include<vector>
+#include<algorithm>
 
 #include "Thirdparty/DBoW2/DBoW2/BowVector.h"
 #include "Thirdparty/DBoW2/DBoW2/FeatureVector.h"
@@ -221,6 +222,14 @@ public:
 
     // Number of KeyPoints.
     int N;
+
+    /* ---------- <SVE> ---------- */
+    float visibility;       // total visibility estimation
+    float SVE_a;            // SVE a, b, and c components
+    float SVE_b;
+    float SVE_c;
+    int n_trackedPoints;    // number of points successfully tracked
+    /* --------------------------- */
 
     // Vector of keypoints (original for visualization) and undistorted (actually used by the system).
     // In the stereo case, mvKeysUn is redundant as images must be rectified.

@@ -129,7 +129,8 @@ Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeSt
     mTimeORB_Ext = std::chrono::duration_cast<std::chrono::duration<double,std::milli> >(time_EndExtORB - time_StartExtORB).count();
 #endif
 
-    N = mvKeys.size();
+    N = mvKeys.size();  // number of extracted features
+
     if(mvKeys.empty())
         return;
 
@@ -193,6 +194,21 @@ Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeSt
     mvStereo3Dpoints = vector<Eigen::Vector3f>(0);
     monoLeft = -1;
     monoRight = -1;
+
+    /* ---------- <SVE> ----------
+    // for every frame, we would like to know how visible the scene is. this can be based on a set of metrics relating to the extracted features
+
+    // a: how many points have been extracted relative to the requested number?
+    SVE_a = N / float();
+    // a is simply the ratio between the actual # of points and the 'maximum' # of points
+    // cout << "SVE_a: " << SVE_a << " N: " << N << " nFeatures: " << float(mpORBextractorLeft->Getnfeatures()) << endl;
+    // b: how well distributed are these points in the frame?
+    // b is contained in 'AssignFeaturesToGrid()'
+
+    // c: how many of these points have been tracked (i.e. belong to the local map)?
+    // c is contained in 'Tracking.cc' where the calculation trackedPoints/totalPoints is performed.
+    // if all points in the frame were already in the local map, they've all been tracked so c=1
+     --------------------------- */
 
     AssignFeaturesToGrid();
 }
@@ -364,6 +380,21 @@ Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extra
     monoLeft = -1;
     monoRight = -1;
 
+    /* ---------- <SVE> ----------
+    // for every frame, we would like to know how visible the scene is. this can be based on a set of metrics relating to the extracted features
+
+    // a: how many points have been extracted relative to the requested number?
+    SVE_a = N / float(mpORBextractorLeft->GetTrackedFeatures());
+    // a is simply the ratio between the actual # of points and the 'maximum' # of points
+    // cout << "SVE_a: " << SVE_a << " N: " << N << " nFeatures: " << float(mpORBextractorLeft->Getnfeatures()) << endl;
+    // b: how well distributed are these points in the frame?
+    // b is contained in 'AssignFeaturesToGrid()'
+
+    // c: how many of these points have been tracked (i.e. belong to the local map)?
+    // c is contained in 'Tracking.cc' where the calculation trackedPoints/totalPoints is performed.
+    // if all points in the frame were already in the local map, they've all been tracked so c=1
+     --------------------------- */
+
     AssignFeaturesToGrid();
 
     if(pPrevF)
@@ -397,7 +428,14 @@ void Frame::AssignFeaturesToGrid()
             }
         }
 
-
+    /* ---------- <SVE> ---------- */
+    // declare a binning array where we can count how many points are in each grid square in the image
+    // the grid that original is using is very fine (~3000 squares), and we'd probably get 1 or 2 points per grid square
+    // if we make the grid less fine, the efficiency should improve for the SVE part
+    int reductionFactor = 8;                                // reduce the number of rows from FRAME_GRID_ROWS to reductionFactor, same for cols
+    int SVEGridSquares = reductionFactor * reductionFactor; // so we now have a grid of reductionFactor*reductionFactor squares
+    int gridBin[SVEGridSquares] = {0};                      // this is our binning array
+    /* ---------------------------*/
 
     for(int i=0;i<N;i++)
     {
@@ -411,8 +449,45 @@ void Frame::AssignFeaturesToGrid()
                 mGrid[nGridPosX][nGridPosY].push_back(i);
             else
                 mGridRight[nGridPosX][nGridPosY].push_back(i - Nleft);
+
+            /* ---------- <SVE> ---------- */
+            // <SVE> convert from fine grid col # and row # to new grid versions
+            // the column # in the fine grid is nGridPosX. divide by the length of each new square & cast to int will give new square
+            int largeGridPosX = nGridPosX / (FRAME_GRID_COLS/reductionFactor);
+            int largeGridPosY = nGridPosY / (FRAME_GRID_ROWS/reductionFactor);
+
+            // find the index of this square (i.e. 0,0 is square 0, 2,1 is square (numCols * 2 + 1), etc.) based on the reduction
+            int squareIdx = (largeGridPosY * reductionFactor) + largeGridPosX;
+            // then bin the points by square index so we know how many points are in each grid square
+            gridBin[squareIdx]++;
+            /* ---------------------------*/
         }
     }
+
+    /* ---------- <SVE> ---------- */
+    // chi-squared 'goodness of fit' test
+    // we expect a uniform distribution (i.e. same number of points in all grid squares)
+    float expectedPoints = float(N) / float(SVEGridSquares);
+    float chiSquared = 0;
+
+    // the best chi-squared value is 0 (distribution fits perfectly with expectation)
+    // the worst chi-squared value corresponds to every bin empty, except for 1 that contains all the points
+    // however, as number of bins increases, the sensitivity of this would become very small due to the probability of all N points fitting within an area of decreasing size. Worst case is therefore instead treated as the case in which all extracted points are within some larger fraction of the frame.
+
+    // scale the full frame area by this factor to give the worst case. e.g. if this value is 1/2, then the worst case is when all points lie within 1/2 of the total frame area.
+    float worstCaseAreaScale = 0.125;
+
+    float worstCase = (expectedPoints * float((1-worstCaseAreaScale) * reductionFactor * reductionFactor)) + (float(worstCaseAreaScale * reductionFactor * reductionFactor)/expectedPoints) * ((float(N) / (worstCaseAreaScale * reductionFactor * reductionFactor)) - expectedPoints) * ((float(N) / (worstCaseAreaScale * reductionFactor * reductionFactor)) - expectedPoints);
+
+    for(int i=0;i<SVEGridSquares;i++){
+        chiSquared += ((gridBin[i] - expectedPoints)*(gridBin[i] - expectedPoints))/expectedPoints;
+    }
+
+    // the b metric is then normalised to the 0-1 range by finding how close the distribution is to the worst-case scenario
+    float tmp_b = 1 - (chiSquared/worstCase);
+    SVE_b = (tmp_b > 1) ? 1 :((tmp_b < 0) ? 0 : tmp_b);
+    /* ---------------------------*/
+
 }
 
 void Frame::ExtractORB(int flag, const cv::Mat &im, const int x0, const int x1)

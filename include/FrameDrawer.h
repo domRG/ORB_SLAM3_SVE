@@ -50,6 +50,11 @@ public:
     cv::Mat DrawFrame(float imageScale=1.f);
     cv::Mat DrawRightFrame(float imageScale=1.f);
 
+    // <SVE> return the number of tracked map points to find out how many features are new
+    inline int get_mnTracked(){
+        return mnTracked;
+    }
+
     bool both;
 
 protected:
